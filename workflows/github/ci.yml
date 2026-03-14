@@ -1,0 +1,31 @@
+name: CI (Template)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Shellcheck
+        run: |
+          shellcheck scripts/*.sh scripts/lib/*.sh scripts/tests/*.sh
+
+      - name: shfmt (check only)
+        run: |
+          docker run --rm -v "$PWD:/mnt" -w /mnt mvdan/shfmt:v3.8.0 \
+            -d scripts config docs examples workflows/github
+
+      - name: Smoke tests
+        run: |
+          bash scripts/tests/mvp-smoke.sh

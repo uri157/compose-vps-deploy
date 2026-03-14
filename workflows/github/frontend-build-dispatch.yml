@@ -1,0 +1,89 @@
+name: Frontend Build Push And Dispatch (Template)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push-dispatch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lowercase owner
+        id: owner
+        run: |
+          owner_lc="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "value=${owner_lc}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Resolve image name and tag
+        id: meta
+        env:
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE }}
+          FRONT_IMAGE_NAME: ${{ vars.FRONT_IMAGE_NAME }}
+        run: |
+          set -euo pipefail
+          registry="${IMAGE_REGISTRY:-ghcr.io}"
+          namespace="${IMAGE_NAMESPACE:-${{ steps.owner.outputs.value }}}"
+          front_name="${FRONT_IMAGE_NAME:-sample-front}"
+          sha_tag="sha-${GITHUB_SHA}"
+
+          echo "front_image=${registry}/${namespace}/${front_name}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=${sha_tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ vars.FRONT_DOCKERFILE || './Dockerfile' }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.front_image }}:${{ steps.meta.outputs.sha_tag }}
+            ${{ steps.meta.outputs.front_image }}:latest
+
+      - name: Dispatch infrastructure deploy
+        env:
+          INFRA_OWNER: ${{ vars.INFRA_OWNER }}
+          INFRA_REPO: ${{ vars.INFRA_REPO }}
+          INFRA_WORKFLOW: ${{ vars.INFRA_WORKFLOW }}
+          INFRA_REF: ${{ vars.INFRA_REF }}
+          INFRA_DISPATCH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+          FRONT_TAG: ${{ steps.meta.outputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          : "${INFRA_OWNER:?Missing vars.INFRA_OWNER}"
+          : "${INFRA_REPO:?Missing vars.INFRA_REPO}"
+          : "${INFRA_WORKFLOW:?Missing vars.INFRA_WORKFLOW}"
+          : "${INFRA_REF:?Missing vars.INFRA_REF}"
+          : "${INFRA_DISPATCH_TOKEN:?Missing secrets.INFRA_DISPATCH_TOKEN}"
+
+          payload="$(printf '{"ref":"%s","inputs":{"front_tag":"%s"}}' \
+            "$INFRA_REF" "$FRONT_TAG")"
+
+          CODE="$(curl -sS -o response.txt -w "%{http_code}" \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${INFRA_DISPATCH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${INFRA_OWNER}/${INFRA_REPO}/actions/workflows/${INFRA_WORKFLOW}/dispatches" \
+            -d "$payload")"
+
+          cat response.txt || true
+          test "$CODE" = "204"

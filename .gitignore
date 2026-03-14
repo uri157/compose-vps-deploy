@@ -1,0 +1,16 @@
+# Local env/state
+.env
+.env.*
+!.env.example
+!*.example
+*.local
+
+# Runtime/logs
+state/
+logs/
+*.log
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/

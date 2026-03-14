@@ -1,0 +1,37 @@
+name: Backend Dispatch Example
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dispatch infrastructure deploy
+        env:
+          INFRA_OWNER: ${{ vars.INFRA_OWNER }}
+          INFRA_REPO: ${{ vars.INFRA_REPO }}
+          INFRA_WORKFLOW: ${{ vars.INFRA_WORKFLOW }}
+          INFRA_REF: ${{ vars.INFRA_REF }}
+          INFRA_DISPATCH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+          API_TAG: sha-${{ github.sha }}
+          MIGRATOR_TAG: sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          payload="$(printf '{"ref":"%s","inputs":{"api_tag":"%s","migrator_tag":"%s"}}' \
+            "$INFRA_REF" "$API_TAG" "$MIGRATOR_TAG")"
+
+          CODE="$(curl -sS -o response.txt -w "%{http_code}" \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${INFRA_DISPATCH_TOKEN}" \
+            "https://api.github.com/repos/${INFRA_OWNER}/${INFRA_REPO}/actions/workflows/${INFRA_WORKFLOW}/dispatches" \
+            -d "$payload")"
+
+          cat response.txt || true
+          test "$CODE" = "204"
