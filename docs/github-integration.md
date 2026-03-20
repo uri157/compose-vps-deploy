@@ -20,8 +20,9 @@ Use templates:
 - `VPS_USER`
 - `REGISTRY_USERNAME`
 - `REGISTRY_PASSWORD`
-- `APP_ENV_B64` (optional)
-- `EXTRA_ENV_B64` (optional)
+- `DB_ENV_B64` (optional)
+- `API_ENV_B64` (optional)
+- `FRONT_ENV_B64` (optional)
 - `TUNNEL_TOKEN` (optional)
 
 ### Infra Repo Variables

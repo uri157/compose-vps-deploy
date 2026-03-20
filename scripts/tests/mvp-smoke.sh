@@ -130,7 +130,9 @@ HEALTH_SERVICES=postgres,api,front,nginx
 HEALTH_TIMEOUT_SECONDS=5
 HEALTH_POLL_SECONDS=1
 DEPLOY_ENV_FILE=$TMP_DIR/deploy/.env.deploy
-APP_ENV_FILE=$TMP_DIR/deploy/.env.app
+DB_ENV_FILE=$TMP_DIR/deploy/.env.db
+API_ENV_FILE=$TMP_DIR/deploy/.env.api
+FRONT_ENV_FILE=$TMP_DIR/deploy/.env.front
 CLEANUP_ENABLED=false
 EOF_CONFIG
 
