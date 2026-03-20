@@ -163,6 +163,7 @@ split_csv() {
 compose() {
   local args=()
   local env_file
+  local compose_file
 
   require_var COMPOSE_FILE
 
@@ -178,6 +179,13 @@ compose() {
   fi
 
   args+=( -f "$COMPOSE_FILE" )
+
+  if [ -n "${COMPOSE_EXTRA_FILES:-}" ]; then
+    while IFS= read -r compose_file; do
+      [ -n "$compose_file" ] || continue
+      args+=( -f "$compose_file" )
+    done < <(split_csv "$COMPOSE_EXTRA_FILES")
+  fi
 
   if [ "$DRY_RUN" = "1" ]; then
     print_cmd docker compose "${args[@]}" "$@"

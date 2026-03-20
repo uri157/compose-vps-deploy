@@ -1,0 +1,11 @@
+services:
+  cloudflared:
+    image: ${CLOUDFLARED_IMAGE:-ghcr.io/erisa/cloudflared:latest}
+    env_file:
+      - ./env/.env.cloudflared
+    command: tunnel --no-autoupdate run
+    depends_on:
+      nginx:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [app]

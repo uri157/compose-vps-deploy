@@ -80,6 +80,17 @@ validate_migration_mode() {
   esac
 }
 
+validate_compose_files() {
+  local compose_file
+
+  [ -f "$COMPOSE_FILE" ] || die "COMPOSE_FILE not found: $COMPOSE_FILE"
+
+  while IFS= read -r compose_file; do
+    [ -n "$compose_file" ] || continue
+    [ -f "$compose_file" ] || die "COMPOSE_EXTRA_FILES entry not found: $compose_file"
+  done < <(split_csv "${COMPOSE_EXTRA_FILES:-}")
+}
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --config)
@@ -186,7 +197,7 @@ stage_preflight() {
   validate_migration_mode
 
   [ -d "$DEPLOY_PATH" ] || die "DEPLOY_PATH does not exist: $DEPLOY_PATH"
-  [ -f "$COMPOSE_FILE" ] || die "COMPOSE_FILE not found: $COMPOSE_FILE"
+  validate_compose_files
 
   if [ "$DRY_RUN" != "1" ]; then
     docker info >/dev/null 2>&1 || die "Docker daemon is not reachable"

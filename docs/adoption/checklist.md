@@ -13,6 +13,7 @@ Use this checklist when adapting an existing project to `compose-vps-deploy`.
 
 ## 3) Compose contract
 - `docker-compose.prod.yml` includes healthchecks for core services.
+- If you support both single-host and multi-project deployment, keep base compose plus mode-specific override files and wire them through `COMPOSE_EXTRA_FILES`.
 - Runtime env files are externalized under `env/`.
 - Stateful services mount persistent volumes.
 
