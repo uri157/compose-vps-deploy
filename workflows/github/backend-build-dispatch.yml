@@ -78,6 +78,7 @@ jobs:
           INFRA_REPO: ${{ vars.INFRA_REPO }}
           INFRA_WORKFLOW: ${{ vars.INFRA_WORKFLOW }}
           INFRA_REF: ${{ vars.INFRA_REF }}
+          MIGRATOR_DOCKERFILE: ${{ vars.MIGRATOR_DOCKERFILE }}
           INFRA_DISPATCH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
           API_TAG: ${{ steps.meta.outputs.sha_tag }}
           MIGRATOR_TAG: ${{ steps.meta.outputs.sha_tag }}
@@ -89,8 +90,13 @@ jobs:
           : "${INFRA_REF:?Missing vars.INFRA_REF}"
           : "${INFRA_DISPATCH_TOKEN:?Missing secrets.INFRA_DISPATCH_TOKEN}"
 
-          payload="$(printf '{"ref":"%s","inputs":{"api_tag":"%s","migrator_tag":"%s"}}' \
-            "$INFRA_REF" "$API_TAG" "$MIGRATOR_TAG")"
+          migrator_input=""
+          if [ -n "${MIGRATOR_DOCKERFILE:-}" ]; then
+            migrator_input="$(printf ',\"migrator_tag\":\"%s\"' "$MIGRATOR_TAG")"
+          fi
+
+          payload="$(printf '{"ref":"%s","inputs":{"api_tag":"%s"%s}}' \
+            "$INFRA_REF" "$API_TAG" "$migrator_input")"
 
           CODE="$(curl -sS -o response.txt -w "%{http_code}" \
             -X POST \

@@ -19,6 +19,36 @@ Checks:
 HELP
 }
 
+is_set() {
+  [ -n "${1:-}" ]
+}
+
+validate_image_tag_pair() {
+  local image_var="$1"
+  local tag_var="$2"
+  local image_value="${!image_var:-}"
+  local tag_value="${!tag_var:-}"
+
+  if is_set "$image_value" && ! is_set "$tag_value"; then
+    die "$image_var is set but $tag_var is empty"
+  fi
+  if ! is_set "$image_value" && is_set "$tag_value"; then
+    die "$tag_var is set but $image_var is empty"
+  fi
+}
+
+resolve_migration_mode() {
+  local migration_mode="${MIGRATION_MODE:-}"
+  if [ -z "$migration_mode" ]; then
+    if is_set "${MIGRATOR_SERVICE:-}"; then
+      migration_mode="service"
+    else
+      migration_mode="none"
+    fi
+  fi
+  printf '%s' "$migration_mode"
+}
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --config)
@@ -46,6 +76,8 @@ check_commands() {
 }
 
 check_config() {
+  local migration_mode
+
   require_var SSH_HOST
   require_var SSH_USER
   require_var SSH_PORT
@@ -53,19 +85,36 @@ check_config() {
 
   require_var COMPOSE_FILE
 
-  require_var REGISTRY_HOST
-  require_var REGISTRY_USERNAME
-  require_var REGISTRY_PASSWORD
-
   require_var API_IMAGE
-  require_var MIGRATOR_IMAGE
-  require_var FRONT_IMAGE
   require_var API_TAG
-  require_var MIGRATOR_TAG
-  require_var FRONT_TAG
+  validate_image_tag_pair "MIGRATOR_IMAGE" "MIGRATOR_TAG"
+  validate_image_tag_pair "FRONT_IMAGE" "FRONT_TAG"
 
-  require_var MIGRATOR_SERVICE
-  require_var HEALTH_SERVICES
+  if is_set "${REGISTRY_USERNAME:-}" && ! is_set "${REGISTRY_PASSWORD:-}"; then
+    die "REGISTRY_USERNAME is set but REGISTRY_PASSWORD is empty"
+  fi
+  if ! is_set "${REGISTRY_USERNAME:-}" && is_set "${REGISTRY_PASSWORD:-}"; then
+    die "REGISTRY_PASSWORD is set but REGISTRY_USERNAME is empty"
+  fi
+  if is_set "${REGISTRY_USERNAME:-}" && is_set "${REGISTRY_PASSWORD:-}"; then
+    require_var REGISTRY_HOST
+  fi
+
+  migration_mode="$(resolve_migration_mode)"
+  case "$migration_mode" in
+    none|service|command)
+      ;;
+    *)
+      die "Invalid MIGRATION_MODE='${migration_mode}' (expected: none|service|command)"
+      ;;
+  esac
+
+  if [ "$migration_mode" = "service" ] && ! is_set "${MIGRATOR_SERVICE:-}"; then
+    die "MIGRATION_MODE=service requires MIGRATOR_SERVICE"
+  fi
+  if [ "$migration_mode" = "command" ] && ! is_set "${MIGRATION_COMMAND:-}"; then
+    die "MIGRATION_MODE=command requires MIGRATION_COMMAND"
+  fi
 }
 
 check_paths() {

@@ -6,17 +6,17 @@ on:
       api_tag:
         description: API image tag override
         required: false
-        default: latest
+        default: ""
         type: string
       migrator_tag:
         description: Migrator image tag override
         required: false
-        default: latest
+        default: ""
         type: string
       front_tag:
         description: Frontend image tag override
         required: false
-        default: latest
+        default: ""
         type: string
       dry_run:
         description: Run deploy in dry-run mode

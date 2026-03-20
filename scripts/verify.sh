@@ -64,7 +64,10 @@ services="${SERVICES_OVERRIDE:-${HEALTH_SERVICES:-}}"
 timeout="${TIMEOUT_OVERRIDE:-${HEALTH_TIMEOUT_SECONDS:-180}}"
 interval="${INTERVAL_OVERRIDE:-${HEALTH_POLL_SECONDS:-5}}"
 
-[ -n "$services" ] || die "No services configured (HEALTH_SERVICES or --services)"
+if [ -z "$services" ]; then
+  log "INFO" "No services configured (HEALTH_SERVICES or --services) -> skipping verification"
+  exit 0
+fi
 
 verify_stage() {
   verify_services "$services" "$timeout" "$interval"

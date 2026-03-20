@@ -40,7 +40,7 @@ Use template:
 - `IMAGE_REGISTRY` (optional, default `ghcr.io`)
 - `IMAGE_NAMESPACE` (optional)
 - `API_IMAGE_NAME`
-- `MIGRATOR_IMAGE_NAME`
+- `MIGRATOR_IMAGE_NAME` (optional when no migrator image is built)
 - `API_DOCKERFILE` (optional, default `./Dockerfile`)
 - `MIGRATOR_DOCKERFILE` (optional)
 - `INFRA_OWNER`
@@ -82,7 +82,8 @@ Use template:
 The app workflows dispatch these inputs to infra deploy workflow:
 
 - `api_tag`
-- `migrator_tag`
+- `migrator_tag` (only when a migrator image is built)
 - `front_tag`
 
 Infra deploy workflow maps them to environment variables consumed by `scripts/deploy.sh`.
+Empty tag inputs are ignored, so existing configured tags remain unchanged.
