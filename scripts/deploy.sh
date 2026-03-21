@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${SCRIPT_DIR}/lib/common.sh"
 
 CONFIG_PATH_ARG=""
+CONFIG_PATH_TMP=""
 CLEANUP_OVERRIDE=""
 
 usage() {
@@ -57,6 +58,100 @@ apply_override_if_set() {
   fi
 }
 
+cleanup_tmp_config() {
+  if [ -n "${CONFIG_PATH_TMP:-}" ] && [ -f "$CONFIG_PATH_TMP" ]; then
+    rm -f "$CONFIG_PATH_TMP"
+  fi
+}
+
+payload_looks_like_env_file() {
+  local payload="${1:-}"
+  local line trimmed
+  local has_assignment=0
+
+  [ -n "$payload" ] || return 1
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    trimmed="$(trim "$line")"
+
+    [ -z "$trimmed" ] && continue
+    case "$trimmed" in
+      \#*) continue ;;
+    esac
+
+    if [[ "$trimmed" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+      has_assignment=1
+      continue
+    fi
+
+    return 1
+  done <<< "$payload"
+
+  [ "$has_assignment" = "1" ]
+}
+
+materialize_env_payload_to_file() {
+  local payload="${1:-}"
+  local target_file="${2:-}"
+  local payload_name="${3:-payload}"
+  local force_write="${4:-0}"
+  local parent
+
+  if [ -z "$payload" ]; then
+    return 0
+  fi
+  if [ -z "$target_file" ]; then
+    die "${payload_name} target file is empty"
+  fi
+
+  if [ "$DRY_RUN" = "1" ] && [ "$force_write" != "1" ]; then
+    if payload_looks_like_env_file "$payload"; then
+      print_cmd sh -c "printf '%s' '<plain env payload>' > '$target_file'"
+    else
+      print_cmd sh -c "base64 -d > '$target_file'"
+    fi
+    return 0
+  fi
+
+  parent="$(dirname "$target_file")"
+  mkdir -p "$parent"
+
+  if payload_looks_like_env_file "$payload"; then
+    printf '%s' "$payload" > "$target_file"
+  else
+    require_cmd base64
+    if ! printf '%s' "$payload" | base64 -d > "$target_file"; then
+      die "Failed to materialize ${payload_name} into ${target_file}. Expected plain env text or valid base64 payload."
+    fi
+  fi
+
+  sed -i 's/\r$//' "$target_file" || true
+}
+
+materialize_config_override_if_set() {
+  local payload="${1:-}"
+  local target_path
+
+  if [ -z "$payload" ]; then
+    return 0
+  fi
+
+  target_path="${CONFIG_PATH_ARG:-$DEFAULT_CONFIG_PATH}"
+
+  if [ "$DRY_RUN" = "1" ]; then
+    CONFIG_PATH_TMP="$(mktemp)"
+    materialize_env_payload_to_file "$payload" "$CONFIG_PATH_TMP" "PROJECT_ENV_B64" "1"
+    CONFIG_PATH_ARG="$CONFIG_PATH_TMP"
+    log "INFO" "[dry-run] materialized PROJECT_ENV_B64 into temp config: ${CONFIG_PATH_TMP}"
+    return 0
+  fi
+
+  log "INFO" "Materializing PROJECT_ENV_B64 -> ${target_path}"
+  materialize_env_payload_to_file "$payload" "$target_path" "PROJECT_ENV_B64" "1"
+  CONFIG_PATH_ARG="$target_path"
+}
+
 decode_env_payload_if_set() {
   local payload="${1:-}"
   local payload_name="${2:-}"
@@ -70,8 +165,8 @@ decode_env_payload_if_set() {
     die "${payload_name} is set but ${label} is empty"
   fi
 
-  log "INFO" "Decoding ${payload_name} -> ${target_file}"
-  decode_b64_to_file "$payload" "$target_file"
+  log "INFO" "Materializing ${payload_name} -> ${target_file}"
+  materialize_env_payload_to_file "$payload" "$target_file" "$payload_name" "0"
 }
 
 validate_migration_mode() {
@@ -133,7 +228,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+trap cleanup_tmp_config EXIT
+
 # Preserve process-level overrides injected by CI before sourcing config.
+PROJECT_ENV_B64_OVERRIDE="${PROJECT_ENV_B64:-}"
 API_TAG_OVERRIDE="${API_TAG:-}"
 MIGRATOR_TAG_OVERRIDE="${MIGRATOR_TAG:-}"
 FRONT_TAG_OVERRIDE="${FRONT_TAG:-}"
@@ -146,6 +244,7 @@ FRONT_ENV_B64_OVERRIDE="${FRONT_ENV_B64:-}"
 TUNNEL_TOKEN_OVERRIDE="${TUNNEL_TOKEN:-}"
 EXTRA_PULL_IMAGES_OVERRIDE="${EXTRA_PULL_IMAGES:-}"
 
+materialize_config_override_if_set "$PROJECT_ENV_B64_OVERRIDE"
 load_config "$CONFIG_PATH_ARG"
 
 # Defaults (can be overridden in config or env)
@@ -194,9 +293,6 @@ stage_preflight() {
   require_cmd grep
   require_cmd base64
 
-  require_var SSH_HOST
-  require_var SSH_USER
-  require_var SSH_PORT
   require_var DEPLOY_PATH
 
   require_var COMPOSE_FILE

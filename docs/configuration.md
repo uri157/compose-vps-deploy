@@ -1,10 +1,11 @@
 # Configuration Contract
 
 The deploy engine expects one env file (default: `config/project.env`).
+SSH target values are provided by the workflow execution layer (for example `VPS_HOST`, `VPS_PORT`, `VPS_USER` secrets in GitHub Actions), not by this file.
 
 ## Required Keys
 
-- SSH target: `SSH_HOST`, `SSH_USER`, `SSH_PORT`, `DEPLOY_PATH`
+- Runtime paths: `DEPLOY_PATH`
 - Compose: `COMPOSE_FILE`
 - Images/tags: `API_IMAGE`, `API_TAG`
 
@@ -18,6 +19,7 @@ The deploy engine expects one env file (default: `config/project.env`).
 - `COMPOSE_PROJECT_NAME`
 - `COMPOSE_EXTRA_FILES` (CSV, appended as additional `docker compose -f` files in order)
 - `COMPOSE_ENV_FILES` (CSV)
+- `PROJECT_ENV_B64` (optional payload that replaces the loaded config file during deploy execution; accepts plain env text or base64)
 - `DEPLOY_ENV_FILE`
 - `DB_ENV_FILE`, `DB_ENV_B64`
 - `API_ENV_FILE`, `API_ENV_B64`
@@ -42,8 +44,9 @@ When using the GitHub templates, dispatched inputs map to config/runtime as foll
 
 If a dispatched tag is empty, the current value from `config/project.env` is preserved.
 
-Secrets can also be injected as base64 payloads:
+Secrets can also be injected as payloads (plain env text or base64):
 
+- `PROJECT_ENV_B64`
 - `DB_ENV_B64`
 - `API_ENV_B64`
 - `FRONT_ENV_B64`
