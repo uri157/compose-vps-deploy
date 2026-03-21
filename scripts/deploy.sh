@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "${SCRIPT_DIR}/lib/common.sh"
 
 CONFIG_PATH_ARG=""
+CONFIG_PATH_TMP=""
 CLEANUP_OVERRIDE=""
 
 usage() {
@@ -55,6 +56,39 @@ apply_override_if_set() {
   if is_set "$value"; then
     printf -v "$name" '%s' "$value"
   fi
+}
+
+cleanup_tmp_config() {
+  if [ -n "${CONFIG_PATH_TMP:-}" ] && [ -f "$CONFIG_PATH_TMP" ]; then
+    rm -f "$CONFIG_PATH_TMP"
+  fi
+}
+
+materialize_config_override_if_set() {
+  local payload="${1:-}"
+  local target_path
+
+  if [ -z "$payload" ]; then
+    return 0
+  fi
+
+  require_cmd base64
+  target_path="${CONFIG_PATH_ARG:-$DEFAULT_CONFIG_PATH}"
+
+  if [ "$DRY_RUN" = "1" ]; then
+    CONFIG_PATH_TMP="$(mktemp)"
+    if ! printf '%s' "$payload" | base64 -d > "$CONFIG_PATH_TMP"; then
+      die "Failed to decode PROJECT_ENV_B64 into temporary config"
+    fi
+    sed -i 's/\r$//' "$CONFIG_PATH_TMP" || true
+    CONFIG_PATH_ARG="$CONFIG_PATH_TMP"
+    log "INFO" "[dry-run] decoded PROJECT_ENV_B64 into temp config: ${CONFIG_PATH_TMP}"
+    return 0
+  fi
+
+  log "INFO" "Decoding PROJECT_ENV_B64 -> ${target_path}"
+  decode_b64_to_file "$payload" "$target_path"
+  CONFIG_PATH_ARG="$target_path"
 }
 
 decode_env_payload_if_set() {
@@ -133,7 +167,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+trap cleanup_tmp_config EXIT
+
 # Preserve process-level overrides injected by CI before sourcing config.
+PROJECT_ENV_B64_OVERRIDE="${PROJECT_ENV_B64:-}"
 API_TAG_OVERRIDE="${API_TAG:-}"
 MIGRATOR_TAG_OVERRIDE="${MIGRATOR_TAG:-}"
 FRONT_TAG_OVERRIDE="${FRONT_TAG:-}"
@@ -146,6 +183,7 @@ FRONT_ENV_B64_OVERRIDE="${FRONT_ENV_B64:-}"
 TUNNEL_TOKEN_OVERRIDE="${TUNNEL_TOKEN:-}"
 EXTRA_PULL_IMAGES_OVERRIDE="${EXTRA_PULL_IMAGES:-}"
 
+materialize_config_override_if_set "$PROJECT_ENV_B64_OVERRIDE"
 load_config "$CONFIG_PATH_ARG"
 
 # Defaults (can be overridden in config or env)

@@ -19,6 +19,7 @@ SSH target values are provided by the workflow execution layer (for example `VPS
 - `COMPOSE_PROJECT_NAME`
 - `COMPOSE_EXTRA_FILES` (CSV, appended as additional `docker compose -f` files in order)
 - `COMPOSE_ENV_FILES` (CSV)
+- `PROJECT_ENV_B64` (optional base64 payload that replaces the loaded config file during deploy execution)
 - `DEPLOY_ENV_FILE`
 - `DB_ENV_FILE`, `DB_ENV_B64`
 - `API_ENV_FILE`, `API_ENV_B64`
@@ -45,6 +46,7 @@ If a dispatched tag is empty, the current value from `config/project.env` is pre
 
 Secrets can also be injected as base64 payloads:
 
+- `PROJECT_ENV_B64`
 - `DB_ENV_B64`
 - `API_ENV_B64`
 - `FRONT_ENV_B64`

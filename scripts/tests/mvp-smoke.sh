@@ -237,6 +237,12 @@ assert_contains "$OUT_DRY" "[01-preflight] start"
 assert_contains "$OUT_DRY" "[10-post-deploy-hook] done"
 assert_contains "$OUT_DRY" "-f $TMP_DIR/deploy/docker-compose.single-host.yml"
 
+echo "[test] deploy supports PROJECT_ENV_B64 override in dry-run"
+PROJECT_ENV_DRY_CFG_B64="$(cat "$TMP_DIR/config-minimal.env" | base64 | tr -d '\n')"
+OUT_PROJECT_ENV_DRY=$(PROJECT_ENV_B64="$PROJECT_ENV_DRY_CFG_B64" PATH="$FAKEBIN:/usr/bin:/bin" "$ROOT_DIR/scripts/deploy.sh" --config "$TMP_DIR/does-not-exist.env" --dry-run 2>&1)
+assert_contains "$OUT_PROJECT_ENV_DRY" "decoded PROJECT_ENV_B64 into temp config"
+assert_contains "$OUT_PROJECT_ENV_DRY" "[10-post-deploy-hook] done"
+
 echo "[test] deploy fails when migrator fails"
 set +e
 OUT_MIG_FAIL=$(FAKE_MIGRATOR_FAIL=1 PATH="$FAKEBIN:/usr/bin:/bin" "$ROOT_DIR/scripts/deploy.sh" --config "$TMP_DIR/config.env" 2>&1)

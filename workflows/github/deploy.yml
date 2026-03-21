@@ -66,6 +66,7 @@ jobs:
 
           REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          PROJECT_ENV_B64: ${{ secrets.PROJECT_ENV_B64 }}
           DB_ENV_B64: ${{ secrets.DB_ENV_B64 }}
           API_ENV_B64: ${{ secrets.API_ENV_B64 }}
           FRONT_ENV_B64: ${{ secrets.FRONT_ENV_B64 }}
@@ -80,6 +81,7 @@ jobs:
             "REMOTE_REPO_PATH='$REMOTE_REPO_PATH' REMOTE_CONFIG_PATH='$REMOTE_CONFIG_PATH' \
              API_TAG='$API_TAG' MIGRATOR_TAG='$MIGRATOR_TAG' FRONT_TAG='$FRONT_TAG' \
              REGISTRY_USERNAME='$REGISTRY_USERNAME' REGISTRY_PASSWORD='$REGISTRY_PASSWORD' \
+             PROJECT_ENV_B64='$PROJECT_ENV_B64' \
              DB_ENV_B64='$DB_ENV_B64' API_ENV_B64='$API_ENV_B64' FRONT_ENV_B64='$FRONT_ENV_B64' TUNNEL_TOKEN='$TUNNEL_TOKEN' \
              DRY_RUN='$DRY_RUN' bash -s" <<'EOF_REMOTE'
           set -euo pipefail
@@ -89,6 +91,7 @@ jobs:
 
           export API_TAG MIGRATOR_TAG FRONT_TAG
           export REGISTRY_USERNAME REGISTRY_PASSWORD
+          export PROJECT_ENV_B64
           export DB_ENV_B64 API_ENV_B64 FRONT_ENV_B64 TUNNEL_TOKEN
 
           DRY_FLAG=""
