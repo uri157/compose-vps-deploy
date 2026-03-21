@@ -337,8 +337,13 @@ stage_env_materialization() {
   decode_env_payload_if_set "${FRONT_ENV_B64:-}" "FRONT_ENV_B64" "${FRONT_ENV_FILE:-}" "FRONT_ENV_FILE"
 
   if [ -n "${TUNNEL_TOKEN:-}" ]; then
+    local tunnel_token_clean
+    local cloudflared_env_content
+    tunnel_token_clean="${TUNNEL_TOKEN//$'\r'/}"
+    tunnel_token_clean="${tunnel_token_clean//$'\n'/}"
     log "INFO" "Writing cloudflared token env file"
-    write_file_content "$CLOUDFLARED_ENV_FILE" "TUNNEL_TOKEN=${TUNNEL_TOKEN}\n"
+    printf -v cloudflared_env_content 'TUNNEL_TOKEN=%s\n' "$tunnel_token_clean"
+    write_file_content "$CLOUDFLARED_ENV_FILE" "$cloudflared_env_content"
   fi
 }
 

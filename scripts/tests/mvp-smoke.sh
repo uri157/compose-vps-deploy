@@ -223,6 +223,15 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local haystack="$1"
+  local needle="$2"
+  if grep -Fq -- "$needle" <<<"$haystack"; then
+    echo "ASSERTION FAILED: expected not to find '$needle'" >&2
+    return 1
+  fi
+}
+
 echo "[test] doctor fails when docker command is unavailable"
 set +e
 OUT_DOCTOR_FAIL=$(env -i PATH="$NODOCKERBIN" HOME="$TMP_DIR" /usr/bin/bash "$ROOT_DIR/scripts/doctor.sh" --config "$TMP_DIR/config.env" 2>&1)
@@ -248,6 +257,12 @@ DB_ENV_PLAIN=$'POSTGRES_USER=trading\nPOSTGRES_PASSWORD=postgres\nPOSTGRES_DB=tr
 DB_ENV_B64="$DB_ENV_PLAIN" PATH="$FAKEBIN:/usr/bin:/bin" "$ROOT_DIR/scripts/deploy.sh" --config "$TMP_DIR/config.env" >/dev/null 2>&1
 assert_contains "$(cat "$TMP_DIR/deploy/.env.db")" "POSTGRES_USER=trading"
 assert_contains "$(cat "$TMP_DIR/deploy/.env.db")" "POSTGRES_PASSWORD=postgres"
+
+echo "[test] deploy writes cloudflared token without literal slash-n suffix"
+TUNNEL_TOKEN='token123' PATH="$FAKEBIN:/usr/bin:/bin" "$ROOT_DIR/scripts/deploy.sh" --config "$TMP_DIR/config.env" >/dev/null 2>&1
+CLOUDFLARED_ENV_CONTENT="$(cat "$TMP_DIR/deploy/env/.env.cloudflared")"
+assert_contains "$CLOUDFLARED_ENV_CONTENT" "TUNNEL_TOKEN=token123"
+assert_not_contains "$CLOUDFLARED_ENV_CONTENT" "\\n"
 
 echo "[test] deploy fails when migrator fails"
 set +e
