@@ -1,10 +1,11 @@
 # Configuration Contract
 
 The deploy engine expects one env file (default: `config/project.env`).
+SSH target values are provided by the workflow execution layer (for example `VPS_HOST`, `VPS_PORT`, `VPS_USER` secrets in GitHub Actions), not by this file.
 
 ## Required Keys
 
-- SSH target: `SSH_HOST`, `SSH_USER`, `SSH_PORT`, `DEPLOY_PATH`
+- Runtime paths: `DEPLOY_PATH`
 - Compose: `COMPOSE_FILE`
 - Images/tags: `API_IMAGE`, `API_TAG`
 

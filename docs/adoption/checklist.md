@@ -18,7 +18,7 @@ Use this checklist when adapting an existing project to `compose-vps-deploy`.
 - Stateful services mount persistent volumes.
 
 ## 4) Deploy config (`config/project.env`)
-- Set SSH target and compose file paths.
+- Set deploy path and compose file paths.
 - Set image coordinates and default tags.
 - Select migration strategy with `MIGRATION_MODE`.
 - Configure `HEALTH_SERVICES` to include only critical services.

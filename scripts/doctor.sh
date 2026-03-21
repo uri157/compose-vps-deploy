@@ -78,9 +78,6 @@ check_commands() {
 check_config() {
   local migration_mode
 
-  require_var SSH_HOST
-  require_var SSH_USER
-  require_var SSH_PORT
   require_var DEPLOY_PATH
 
   require_var COMPOSE_FILE

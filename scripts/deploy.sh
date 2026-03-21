@@ -194,9 +194,6 @@ stage_preflight() {
   require_cmd grep
   require_cmd base64
 
-  require_var SSH_HOST
-  require_var SSH_USER
-  require_var SSH_PORT
   require_var DEPLOY_PATH
 
   require_var COMPOSE_FILE
