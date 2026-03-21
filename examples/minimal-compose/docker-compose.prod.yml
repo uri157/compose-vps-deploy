@@ -4,7 +4,7 @@ services:
   postgres:
     image: ${POSTGRES_IMAGE:-public.ecr.aws/docker/library/postgres:16-alpine}
     env_file:
-      - ./env/.env.app
+      - ./env/.env.db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,7 +18,7 @@ services:
   migrator:
     image: ${MIGRATOR_IMAGE}:${MIGRATOR_TAG:-latest}
     env_file:
-      - ./env/.env.app
+      - ./env/.env.db
     command: ["sh", "-ec", "echo 'migration complete'"]
     depends_on:
       postgres:
@@ -28,6 +28,8 @@ services:
 
   api:
     image: ${API_IMAGE}:${API_TAG:-latest}
+    env_file:
+      - ./env/.env.api
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,6 +45,8 @@ services:
 
   front:
     image: ${FRONT_IMAGE}:${FRONT_TAG:-latest}
+    env_file:
+      - ./env/.env.front
     depends_on:
       api:
         condition: service_healthy

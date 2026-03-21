@@ -118,8 +118,15 @@ check_config() {
 }
 
 check_paths() {
+  local compose_file
+
   [ -d "$DEPLOY_PATH" ] || die "DEPLOY_PATH does not exist: $DEPLOY_PATH"
   [ -f "$COMPOSE_FILE" ] || die "COMPOSE_FILE not found: $COMPOSE_FILE"
+
+  while IFS= read -r compose_file; do
+    [ -n "$compose_file" ] || continue
+    [ -f "$compose_file" ] || die "COMPOSE_EXTRA_FILES entry not found: $compose_file"
+  done < <(split_csv "${COMPOSE_EXTRA_FILES:-}")
 }
 
 run_stage "01-commands" check_commands

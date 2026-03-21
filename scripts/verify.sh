@@ -59,6 +59,12 @@ load_config "$CONFIG_PATH_ARG"
 
 require_cmd docker
 require_var COMPOSE_FILE
+[ -f "$COMPOSE_FILE" ] || die "COMPOSE_FILE not found: $COMPOSE_FILE"
+
+while IFS= read -r compose_file; do
+  [ -n "$compose_file" ] || continue
+  [ -f "$compose_file" ] || die "COMPOSE_EXTRA_FILES entry not found: $compose_file"
+done < <(split_csv "${COMPOSE_EXTRA_FILES:-}")
 
 services="${SERVICES_OVERRIDE:-${HEALTH_SERVICES:-}}"
 timeout="${TIMEOUT_OVERRIDE:-${HEALTH_TIMEOUT_SECONDS:-180}}"

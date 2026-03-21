@@ -115,6 +115,7 @@ SSH_USER=deploy
 SSH_PORT=22
 DEPLOY_PATH=$TMP_DIR/deploy
 COMPOSE_FILE=$TMP_DIR/deploy/docker-compose.prod.yml
+COMPOSE_EXTRA_FILES=$TMP_DIR/deploy/docker-compose.single-host.yml
 REGISTRY_HOST=ghcr.io
 REGISTRY_USERNAME=u
 REGISTRY_PASSWORD=p
@@ -129,7 +130,9 @@ HEALTH_SERVICES=postgres,api,front,nginx
 HEALTH_TIMEOUT_SECONDS=5
 HEALTH_POLL_SECONDS=1
 DEPLOY_ENV_FILE=$TMP_DIR/deploy/.env.deploy
-APP_ENV_FILE=$TMP_DIR/deploy/.env.app
+DB_ENV_FILE=$TMP_DIR/deploy/.env.db
+API_ENV_FILE=$TMP_DIR/deploy/.env.api
+FRONT_ENV_FILE=$TMP_DIR/deploy/.env.front
 CLEANUP_ENABLED=false
 EOF_CONFIG
 
@@ -193,7 +196,20 @@ MIGRATION_MODE=service
 CLEANUP_ENABLED=false
 EOF_CONFIG_INVALID
 
+cat > "$TMP_DIR/config-invalid-extra-compose.env" <<EOF_CONFIG_INVALID_EXTRA
+SSH_HOST=example.com
+SSH_USER=deploy
+SSH_PORT=22
+DEPLOY_PATH=$TMP_DIR/deploy
+COMPOSE_FILE=$TMP_DIR/deploy/docker-compose.prod.yml
+COMPOSE_EXTRA_FILES=$TMP_DIR/deploy/does-not-exist.yml
+API_IMAGE=ghcr.io/acme/api
+API_TAG=latest
+CLEANUP_ENABLED=false
+EOF_CONFIG_INVALID_EXTRA
+
 touch "$TMP_DIR/deploy/docker-compose.prod.yml"
+touch "$TMP_DIR/deploy/docker-compose.single-host.yml"
 
 FAKE_DOCKER_LOG="$TMP_DIR/docker.log"
 export FAKE_DOCKER_LOG
@@ -201,7 +217,7 @@ export FAKE_DOCKER_LOG
 assert_contains() {
   local haystack="$1"
   local needle="$2"
-  if ! grep -Fq "$needle" <<<"$haystack"; then
+  if ! grep -Fq -- "$needle" <<<"$haystack"; then
     echo "ASSERTION FAILED: expected to find '$needle'" >&2
     return 1
   fi
@@ -219,6 +235,7 @@ echo "[test] deploy --dry-run prints ordered stages"
 OUT_DRY=$(PATH="$FAKEBIN:/usr/bin:/bin" "$ROOT_DIR/scripts/deploy.sh" --config "$TMP_DIR/config.env" --dry-run 2>&1)
 assert_contains "$OUT_DRY" "[01-preflight] start"
 assert_contains "$OUT_DRY" "[10-post-deploy-hook] done"
+assert_contains "$OUT_DRY" "-f $TMP_DIR/deploy/docker-compose.single-host.yml"
 
 echo "[test] deploy fails when migrator fails"
 set +e
@@ -261,5 +278,13 @@ RC_INVALID_MIGRATION=$?
 set -e
 [ $RC_INVALID_MIGRATION -ne 0 ] || { echo "doctor should fail for invalid migration config" >&2; exit 1; }
 assert_contains "$OUT_INVALID_MIGRATION" "MIGRATION_MODE=service requires MIGRATOR_SERVICE"
+
+echo "[test] doctor fails when COMPOSE_EXTRA_FILES has invalid path"
+set +e
+OUT_INVALID_EXTRA=$(PATH="$FAKEBIN:/usr/bin:/bin" "$ROOT_DIR/scripts/doctor.sh" --config "$TMP_DIR/config-invalid-extra-compose.env" 2>&1)
+RC_INVALID_EXTRA=$?
+set -e
+[ $RC_INVALID_EXTRA -ne 0 ] || { echo "doctor should fail for invalid COMPOSE_EXTRA_FILES path" >&2; exit 1; }
+assert_contains "$OUT_INVALID_EXTRA" "COMPOSE_EXTRA_FILES entry not found"
 
 echo "All MVP smoke tests passed"

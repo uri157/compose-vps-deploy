@@ -66,8 +66,9 @@ jobs:
 
           REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
-          APP_ENV_B64: ${{ secrets.APP_ENV_B64 }}
-          EXTRA_ENV_B64: ${{ secrets.EXTRA_ENV_B64 }}
+          DB_ENV_B64: ${{ secrets.DB_ENV_B64 }}
+          API_ENV_B64: ${{ secrets.API_ENV_B64 }}
+          FRONT_ENV_B64: ${{ secrets.FRONT_ENV_B64 }}
           TUNNEL_TOKEN: ${{ secrets.TUNNEL_TOKEN }}
         run: |
           set -euo pipefail
@@ -79,7 +80,7 @@ jobs:
             "REMOTE_REPO_PATH='$REMOTE_REPO_PATH' REMOTE_CONFIG_PATH='$REMOTE_CONFIG_PATH' \
              API_TAG='$API_TAG' MIGRATOR_TAG='$MIGRATOR_TAG' FRONT_TAG='$FRONT_TAG' \
              REGISTRY_USERNAME='$REGISTRY_USERNAME' REGISTRY_PASSWORD='$REGISTRY_PASSWORD' \
-             APP_ENV_B64='$APP_ENV_B64' EXTRA_ENV_B64='$EXTRA_ENV_B64' TUNNEL_TOKEN='$TUNNEL_TOKEN' \
+             DB_ENV_B64='$DB_ENV_B64' API_ENV_B64='$API_ENV_B64' FRONT_ENV_B64='$FRONT_ENV_B64' TUNNEL_TOKEN='$TUNNEL_TOKEN' \
              DRY_RUN='$DRY_RUN' bash -s" <<'EOF_REMOTE'
           set -euo pipefail
 
@@ -88,7 +89,7 @@ jobs:
 
           export API_TAG MIGRATOR_TAG FRONT_TAG
           export REGISTRY_USERNAME REGISTRY_PASSWORD
-          export APP_ENV_B64 EXTRA_ENV_B64 TUNNEL_TOKEN
+          export DB_ENV_B64 API_ENV_B64 FRONT_ENV_B64 TUNNEL_TOKEN
 
           DRY_FLAG=""
           if [ "${DRY_RUN:-false}" = "true" ]; then

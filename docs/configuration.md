@@ -16,9 +16,12 @@ The deploy engine expects one env file (default: `config/project.env`).
 - Optional image/tag pairs: `MIGRATOR_IMAGE` + `MIGRATOR_TAG`, `FRONT_IMAGE` + `FRONT_TAG`
   - Image/tag must be set together as a pair.
 - `COMPOSE_PROJECT_NAME`
+- `COMPOSE_EXTRA_FILES` (CSV, appended as additional `docker compose -f` files in order)
 - `COMPOSE_ENV_FILES` (CSV)
-- `DEPLOY_ENV_FILE`, `APP_ENV_FILE`, `APP_ENV_B64`
-- `EXTRA_ENV_B64`, `EXTRA_ENV_FILE`
+- `DEPLOY_ENV_FILE`
+- `DB_ENV_FILE`, `DB_ENV_B64`
+- `API_ENV_FILE`, `API_ENV_B64`
+- `FRONT_ENV_FILE`, `FRONT_ENV_B64`
 - `CLOUDFLARED_ENV_FILE`, `TUNNEL_TOKEN`
 - `EXTRA_PULL_IMAGES` (CSV)
 - `MIGRATION_MODE` (`none|service|command`)
@@ -41,5 +44,6 @@ If a dispatched tag is empty, the current value from `config/project.env` is pre
 
 Secrets can also be injected as base64 payloads:
 
-- `APP_ENV_B64`
-- `EXTRA_ENV_B64`
+- `DB_ENV_B64`
+- `API_ENV_B64`
+- `FRONT_ENV_B64`

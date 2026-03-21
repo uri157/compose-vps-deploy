@@ -57,6 +57,23 @@ apply_override_if_set() {
   fi
 }
 
+decode_env_payload_if_set() {
+  local payload="${1:-}"
+  local payload_name="${2:-}"
+  local target_file="${3:-}"
+  local label="${4:-}"
+
+  if [ -z "$payload" ]; then
+    return 0
+  fi
+  if [ -z "$target_file" ]; then
+    die "${payload_name} is set but ${label} is empty"
+  fi
+
+  log "INFO" "Decoding ${payload_name} -> ${target_file}"
+  decode_b64_to_file "$payload" "$target_file"
+}
+
 validate_migration_mode() {
   case "${MIGRATION_MODE}" in
     none|service|command)
@@ -78,6 +95,17 @@ validate_migration_mode() {
       fi
       ;;
   esac
+}
+
+validate_compose_files() {
+  local compose_file
+
+  [ -f "$COMPOSE_FILE" ] || die "COMPOSE_FILE not found: $COMPOSE_FILE"
+
+  while IFS= read -r compose_file; do
+    [ -n "$compose_file" ] || continue
+    [ -f "$compose_file" ] || die "COMPOSE_EXTRA_FILES entry not found: $compose_file"
+  done < <(split_csv "${COMPOSE_EXTRA_FILES:-}")
 }
 
 while [ $# -gt 0 ]; do
@@ -112,8 +140,9 @@ FRONT_TAG_OVERRIDE="${FRONT_TAG:-}"
 REGISTRY_HOST_OVERRIDE="${REGISTRY_HOST:-}"
 REGISTRY_USERNAME_OVERRIDE="${REGISTRY_USERNAME:-}"
 REGISTRY_PASSWORD_OVERRIDE="${REGISTRY_PASSWORD:-}"
-APP_ENV_B64_OVERRIDE="${APP_ENV_B64:-}"
-EXTRA_ENV_B64_OVERRIDE="${EXTRA_ENV_B64:-}"
+DB_ENV_B64_OVERRIDE="${DB_ENV_B64:-}"
+API_ENV_B64_OVERRIDE="${API_ENV_B64:-}"
+FRONT_ENV_B64_OVERRIDE="${FRONT_ENV_B64:-}"
 TUNNEL_TOKEN_OVERRIDE="${TUNNEL_TOKEN:-}"
 EXTRA_PULL_IMAGES_OVERRIDE="${EXTRA_PULL_IMAGES:-}"
 
@@ -123,7 +152,9 @@ load_config "$CONFIG_PATH_ARG"
 HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-180}"
 HEALTH_POLL_SECONDS="${HEALTH_POLL_SECONDS:-5}"
 DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE:-${DEPLOY_PATH}/env/.env.deploy}"
-APP_ENV_FILE="${APP_ENV_FILE:-${DEPLOY_PATH}/env/.env.app}"
+DB_ENV_FILE="${DB_ENV_FILE:-${DEPLOY_PATH}/env/.env.db}"
+API_ENV_FILE="${API_ENV_FILE:-${DEPLOY_PATH}/env/.env.api}"
+FRONT_ENV_FILE="${FRONT_ENV_FILE:-${DEPLOY_PATH}/env/.env.front}"
 CLOUDFLARED_ENV_FILE="${CLOUDFLARED_ENV_FILE:-${DEPLOY_PATH}/env/.env.cloudflared}"
 CLEANUP_ENABLED="${CLEANUP_ENABLED:-true}"
 EXTRA_PULL_IMAGES="${EXTRA_PULL_IMAGES:-}"
@@ -138,8 +169,9 @@ apply_override_if_set "FRONT_TAG" "$FRONT_TAG_OVERRIDE"
 apply_override_if_set "REGISTRY_HOST" "$REGISTRY_HOST_OVERRIDE"
 apply_override_if_set "REGISTRY_USERNAME" "$REGISTRY_USERNAME_OVERRIDE"
 apply_override_if_set "REGISTRY_PASSWORD" "$REGISTRY_PASSWORD_OVERRIDE"
-apply_override_if_set "APP_ENV_B64" "$APP_ENV_B64_OVERRIDE"
-apply_override_if_set "EXTRA_ENV_B64" "$EXTRA_ENV_B64_OVERRIDE"
+apply_override_if_set "DB_ENV_B64" "$DB_ENV_B64_OVERRIDE"
+apply_override_if_set "API_ENV_B64" "$API_ENV_B64_OVERRIDE"
+apply_override_if_set "FRONT_ENV_B64" "$FRONT_ENV_B64_OVERRIDE"
 apply_override_if_set "TUNNEL_TOKEN" "$TUNNEL_TOKEN_OVERRIDE"
 apply_override_if_set "EXTRA_PULL_IMAGES" "$EXTRA_PULL_IMAGES_OVERRIDE"
 
@@ -186,7 +218,7 @@ stage_preflight() {
   validate_migration_mode
 
   [ -d "$DEPLOY_PATH" ] || die "DEPLOY_PATH does not exist: $DEPLOY_PATH"
-  [ -f "$COMPOSE_FILE" ] || die "COMPOSE_FILE not found: $COMPOSE_FILE"
+  validate_compose_files
 
   if [ "$DRY_RUN" != "1" ]; then
     docker info >/dev/null 2>&1 || die "Docker daemon is not reachable"
@@ -204,15 +236,9 @@ stage_env_materialization() {
     upsert_env_var "$DEPLOY_ENV_FILE" "FRONT_TAG" "$FRONT_TAG"
   fi
 
-  if [ -n "${APP_ENV_B64:-}" ]; then
-    log "INFO" "Decoding APP_ENV_B64 -> ${APP_ENV_FILE}"
-    decode_b64_to_file "$APP_ENV_B64" "$APP_ENV_FILE"
-  fi
-
-  if [ -n "${EXTRA_ENV_B64:-}" ] && [ -n "${EXTRA_ENV_FILE:-}" ]; then
-    log "INFO" "Decoding EXTRA_ENV_B64 -> ${EXTRA_ENV_FILE}"
-    decode_b64_to_file "$EXTRA_ENV_B64" "$EXTRA_ENV_FILE"
-  fi
+  decode_env_payload_if_set "${DB_ENV_B64:-}" "DB_ENV_B64" "${DB_ENV_FILE:-}" "DB_ENV_FILE"
+  decode_env_payload_if_set "${API_ENV_B64:-}" "API_ENV_B64" "${API_ENV_FILE:-}" "API_ENV_FILE"
+  decode_env_payload_if_set "${FRONT_ENV_B64:-}" "FRONT_ENV_B64" "${FRONT_ENV_FILE:-}" "FRONT_ENV_FILE"
 
   if [ -n "${TUNNEL_TOKEN:-}" ]; then
     log "INFO" "Writing cloudflared token env file"
