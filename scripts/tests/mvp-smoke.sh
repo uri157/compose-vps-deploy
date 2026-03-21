@@ -238,10 +238,16 @@ assert_contains "$OUT_DRY" "[10-post-deploy-hook] done"
 assert_contains "$OUT_DRY" "-f $TMP_DIR/deploy/docker-compose.single-host.yml"
 
 echo "[test] deploy supports PROJECT_ENV_B64 override in dry-run"
-PROJECT_ENV_DRY_CFG_B64="$(cat "$TMP_DIR/config-minimal.env" | base64 | tr -d '\n')"
-OUT_PROJECT_ENV_DRY=$(PROJECT_ENV_B64="$PROJECT_ENV_DRY_CFG_B64" PATH="$FAKEBIN:/usr/bin:/bin" "$ROOT_DIR/scripts/deploy.sh" --config "$TMP_DIR/does-not-exist.env" --dry-run 2>&1)
-assert_contains "$OUT_PROJECT_ENV_DRY" "decoded PROJECT_ENV_B64 into temp config"
+PROJECT_ENV_DRY_CFG_RAW="$(cat "$TMP_DIR/config-minimal.env")"
+OUT_PROJECT_ENV_DRY=$(PROJECT_ENV_B64="$PROJECT_ENV_DRY_CFG_RAW" PATH="$FAKEBIN:/usr/bin:/bin" "$ROOT_DIR/scripts/deploy.sh" --config "$TMP_DIR/does-not-exist.env" --dry-run 2>&1)
+assert_contains "$OUT_PROJECT_ENV_DRY" "materialized PROJECT_ENV_B64 into temp config"
 assert_contains "$OUT_PROJECT_ENV_DRY" "[10-post-deploy-hook] done"
+
+echo "[test] deploy accepts plain env content in *_ENV_B64 variables"
+DB_ENV_PLAIN=$'POSTGRES_USER=trading\nPOSTGRES_PASSWORD=postgres\nPOSTGRES_DB=trading_chart\n'
+DB_ENV_B64="$DB_ENV_PLAIN" PATH="$FAKEBIN:/usr/bin:/bin" "$ROOT_DIR/scripts/deploy.sh" --config "$TMP_DIR/config.env" >/dev/null 2>&1
+assert_contains "$(cat "$TMP_DIR/deploy/.env.db")" "POSTGRES_USER=trading"
+assert_contains "$(cat "$TMP_DIR/deploy/.env.db")" "POSTGRES_PASSWORD=postgres"
 
 echo "[test] deploy fails when migrator fails"
 set +e

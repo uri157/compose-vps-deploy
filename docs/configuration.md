@@ -19,7 +19,7 @@ SSH target values are provided by the workflow execution layer (for example `VPS
 - `COMPOSE_PROJECT_NAME`
 - `COMPOSE_EXTRA_FILES` (CSV, appended as additional `docker compose -f` files in order)
 - `COMPOSE_ENV_FILES` (CSV)
-- `PROJECT_ENV_B64` (optional base64 payload that replaces the loaded config file during deploy execution)
+- `PROJECT_ENV_B64` (optional payload that replaces the loaded config file during deploy execution; accepts plain env text or base64)
 - `DEPLOY_ENV_FILE`
 - `DB_ENV_FILE`, `DB_ENV_B64`
 - `API_ENV_FILE`, `API_ENV_B64`
@@ -44,7 +44,7 @@ When using the GitHub templates, dispatched inputs map to config/runtime as foll
 
 If a dispatched tag is empty, the current value from `config/project.env` is preserved.
 
-Secrets can also be injected as base64 payloads:
+Secrets can also be injected as payloads (plain env text or base64):
 
 - `PROJECT_ENV_B64`
 - `DB_ENV_B64`

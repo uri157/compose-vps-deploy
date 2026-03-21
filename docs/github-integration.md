@@ -20,10 +20,10 @@ Use templates:
 - `VPS_USER`
 - `REGISTRY_USERNAME`
 - `REGISTRY_PASSWORD`
-- `PROJECT_ENV_B64` (optional)
-- `DB_ENV_B64` (optional)
-- `API_ENV_B64` (optional)
-- `FRONT_ENV_B64` (optional)
+- `PROJECT_ENV_B64` (optional; plain env text or base64)
+- `DB_ENV_B64` (optional; plain env text or base64)
+- `API_ENV_B64` (optional; plain env text or base64)
+- `FRONT_ENV_B64` (optional; plain env text or base64)
 - `TUNNEL_TOKEN` (optional)
 
 ### Infra Repo Variables

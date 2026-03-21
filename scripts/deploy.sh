@@ -64,6 +64,71 @@ cleanup_tmp_config() {
   fi
 }
 
+payload_looks_like_env_file() {
+  local payload="${1:-}"
+  local line trimmed
+  local has_assignment=0
+
+  [ -n "$payload" ] || return 1
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    trimmed="$(trim "$line")"
+
+    [ -z "$trimmed" ] && continue
+    case "$trimmed" in
+      \#*) continue ;;
+    esac
+
+    if [[ "$trimmed" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+      has_assignment=1
+      continue
+    fi
+
+    return 1
+  done <<< "$payload"
+
+  [ "$has_assignment" = "1" ]
+}
+
+materialize_env_payload_to_file() {
+  local payload="${1:-}"
+  local target_file="${2:-}"
+  local payload_name="${3:-payload}"
+  local force_write="${4:-0}"
+  local parent
+
+  if [ -z "$payload" ]; then
+    return 0
+  fi
+  if [ -z "$target_file" ]; then
+    die "${payload_name} target file is empty"
+  fi
+
+  if [ "$DRY_RUN" = "1" ] && [ "$force_write" != "1" ]; then
+    if payload_looks_like_env_file "$payload"; then
+      print_cmd sh -c "printf '%s' '<plain env payload>' > '$target_file'"
+    else
+      print_cmd sh -c "base64 -d > '$target_file'"
+    fi
+    return 0
+  fi
+
+  parent="$(dirname "$target_file")"
+  mkdir -p "$parent"
+
+  if payload_looks_like_env_file "$payload"; then
+    printf '%s' "$payload" > "$target_file"
+  else
+    require_cmd base64
+    if ! printf '%s' "$payload" | base64 -d > "$target_file"; then
+      die "Failed to materialize ${payload_name} into ${target_file}. Expected plain env text or valid base64 payload."
+    fi
+  fi
+
+  sed -i 's/\r$//' "$target_file" || true
+}
+
 materialize_config_override_if_set() {
   local payload="${1:-}"
   local target_path
@@ -72,22 +137,18 @@ materialize_config_override_if_set() {
     return 0
   fi
 
-  require_cmd base64
   target_path="${CONFIG_PATH_ARG:-$DEFAULT_CONFIG_PATH}"
 
   if [ "$DRY_RUN" = "1" ]; then
     CONFIG_PATH_TMP="$(mktemp)"
-    if ! printf '%s' "$payload" | base64 -d > "$CONFIG_PATH_TMP"; then
-      die "Failed to decode PROJECT_ENV_B64 into temporary config"
-    fi
-    sed -i 's/\r$//' "$CONFIG_PATH_TMP" || true
+    materialize_env_payload_to_file "$payload" "$CONFIG_PATH_TMP" "PROJECT_ENV_B64" "1"
     CONFIG_PATH_ARG="$CONFIG_PATH_TMP"
-    log "INFO" "[dry-run] decoded PROJECT_ENV_B64 into temp config: ${CONFIG_PATH_TMP}"
+    log "INFO" "[dry-run] materialized PROJECT_ENV_B64 into temp config: ${CONFIG_PATH_TMP}"
     return 0
   fi
 
-  log "INFO" "Decoding PROJECT_ENV_B64 -> ${target_path}"
-  decode_b64_to_file "$payload" "$target_path"
+  log "INFO" "Materializing PROJECT_ENV_B64 -> ${target_path}"
+  materialize_env_payload_to_file "$payload" "$target_path" "PROJECT_ENV_B64" "1"
   CONFIG_PATH_ARG="$target_path"
 }
 
@@ -104,8 +165,8 @@ decode_env_payload_if_set() {
     die "${payload_name} is set but ${label} is empty"
   fi
 
-  log "INFO" "Decoding ${payload_name} -> ${target_file}"
-  decode_b64_to_file "$payload" "$target_file"
+  log "INFO" "Materializing ${payload_name} -> ${target_file}"
+  materialize_env_payload_to_file "$payload" "$target_file" "$payload_name" "0"
 }
 
 validate_migration_mode() {
